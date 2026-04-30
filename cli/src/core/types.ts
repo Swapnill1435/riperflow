@@ -50,16 +50,6 @@ export interface ProtectionCategory {
   description: string;
 }
 
-export interface ToolAdapter {
-  name: string;
-  displayName: string;
-  configLocation: string;
-  ruleExtension: string;
-  isAvailable(): Promise<boolean>;
-  install(rules: string): Promise<void>;
-  uninstall(): Promise<void>;
-}
-
 export interface MCPService {
   name: string;
   symbol: string;
