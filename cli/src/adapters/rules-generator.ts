@@ -307,7 +307,7 @@ ${generateMemoryFilesTable()}
 | **UNINITIATED** | Π₁ 🌱 | Framework installed but not started |
 | **INITIALIZING** | Π₂ 🚧 | Setup in progress |
 | **DEVELOPMENT** | Π₃ 🏗️ | Main development work |
-| **MAINTENANCE** | Π₄ � | Long-term support |
+| **MAINTENANCE** | Π₄ 🔧 | Long-term support |
 
 | Level | Symbol | Description |
 |-------|--------|-------------|
@@ -335,7 +335,7 @@ ${generateModeInstructions()}
 
 ${opts.includeBMAD ? generateBMADContext(opts.currentMode, opts.currentRole, opts.currentGate) : ''}
 
-## �️ Protection Enforcement
+## 🛡️ Protection Enforcement
 
 **CRITICAL**: Before ANY file modification:
 1. Check current mode permissions (ℙ)
@@ -347,7 +347,7 @@ ${opts.includeBMAD ? generateBMADContext(opts.currentMode, opts.currentRole, opt
 - Ψ₁ 🔒 PROTECTED: NEVER modify without explicit approval
 - Ψ₂ 🛡️ GUARDED: Ask before modifying
 - Ψ₃ ℹ️ INFO: Context notes
-- Ψ₄ � DEBUG: Debugging code
+- Ψ₄ 🐛 DEBUG: Debugging code
 - Ψ₅ 🧪 TEST: Testing code  
 - Ψ₆ ⚠️ CRITICAL: Business logic - extra care
 
