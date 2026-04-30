@@ -196,17 +196,28 @@ async function editPRD(prdDir: string, id?: string): Promise<void> {
     console.log(chalk.gray('Usage: riper-for-all prd edit <id>\n'));
     process.exit(1);
   }
-  
+
   const filePath = path.join(prdDir, `${id}.json`);
-  
+
   if (!await fs.pathExists(filePath)) {
     console.log(chalk.red(`\n❌ PRD not found: ${id}\n`));
     process.exit(1);
   }
-  
-  console.log(chalk.yellow('\n⚠ PRD editing is done via your text editor.\n'));
-  console.log(chalk.gray(`  Open this file to edit:`));
-  console.log(chalk.cyan(`  ${filePath}\n`));
+
+  const editor = process.env.EDITOR || process.env.VISUAL || 'nano';
+  console.log(chalk.cyan(`\n📝 Opening ${id}.json in ${editor}...\n`));
+
+  const { spawn } = await import('node:child_process');
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(editor, [filePath], { stdio: 'inherit' });
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0 || code === null) resolve();
+      else reject(new Error(`${editor} exited with code ${code}`));
+    });
+  });
+
+  console.log(chalk.green(`\n✓ Closed editor for ${id}\n`));
 }
 
 async function updatePRDStatus(prdDir: string, id: string | undefined, status: string): Promise<void> {
