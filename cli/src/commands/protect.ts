@@ -3,6 +3,7 @@ import { loadConfig } from '../config/loader.js';
 import { PROTECTION_LEVELS, getProtection, listProtectionLevels, ProtectionLevel, FileProtection } from '../core/protection.js';
 import fs from 'fs-extra';
 import path from 'path';
+import { withLock } from '../memory/lock.js';
 
 export interface ProtectOptions {
   path?: string;
@@ -124,8 +125,10 @@ async function setProtection(target: string | undefined, level: string, protecti
     });
   }
   
-  await fs.writeJson(protectionFile, protections, { spaces: 2 });
-  
+  await withLock(protectionFile, async () => {
+    await fs.writeJson(protectionFile, protections, { spaces: 2 });
+  });
+
   console.log(chalk.green(`\n✓ Set protection for ${target} to ${protection.name}\n`));
 }
 
@@ -143,8 +146,10 @@ async function removeProtection(target: string | undefined, protections: FilePro
   }
   
   protections.splice(existingIndex, 1);
-  await fs.writeJson(protectionFile, protections, { spaces: 2 });
-  
+  await withLock(protectionFile, async () => {
+    await fs.writeJson(protectionFile, protections, { spaces: 2 });
+  });
+
   console.log(chalk.green(`\n✓ Removed protection from ${target}\n`));
 }
 

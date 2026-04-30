@@ -3,6 +3,7 @@ import { loadConfig } from '../config/loader.js';
 import { getRiperDir, getMemoryBankDir } from '../config/loader.js';
 import fs from 'fs-extra';
 import path from 'path';
+import { withLock } from '../memory/lock.js';
 
 const MAX_BACKUPS = 10;
 
@@ -10,28 +11,44 @@ function getBackupsDir(): string {
   return path.join(getRiperDir(), 'backups');
 }
 
+/**
+ * Internal helper: perform the actual copy+cleanup without acquiring any lock.
+ * Callers that already hold a lock on `filePath` (e.g. saveConfig/saveState)
+ * should use this directly to avoid a deadlock.
+ */
+export async function _doBackupCopy(filePath: string, silent: boolean = false): Promise<string | null> {
+  if (!(await fs.pathExists(filePath))) {
+    return null;
+  }
+
+  const backupsDir = getBackupsDir();
+  await fs.ensureDir(backupsDir);
+
+  const filename = path.basename(filePath);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupFilename = `${filename}.${timestamp}.bak`;
+  const backupPath = path.join(backupsDir, backupFilename);
+
+  await fs.copy(filePath, backupPath);
+  await cleanupOldBackups(filename, backupsDir);
+
+  if (!silent) {
+    console.log(chalk.gray(`  📦 Backed up: ${filename}`));
+  }
+
+  return backupPath;
+}
+
+/**
+ * Public function: backs up `filePath` to the backups directory under an
+ * exclusive lock on the source file so a concurrent writer cannot update it
+ * mid-copy.  Stand-alone callers (e.g. the `riper-for-all backup` command)
+ * should use this.  saveConfig/saveState hold their own lock and call
+ * _doBackupCopy directly.
+ */
 export async function autoBackupFile(filePath: string, silent: boolean = false): Promise<string | null> {
   try {
-    if (!(await fs.pathExists(filePath))) {
-      return null;
-    }
-
-    const backupsDir = getBackupsDir();
-    await fs.ensureDir(backupsDir);
-
-    const filename = path.basename(filePath);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFilename = `${filename}.${timestamp}.bak`;
-    const backupPath = path.join(backupsDir, backupFilename);
-
-    await fs.copy(filePath, backupPath);
-    await cleanupOldBackups(filename, backupsDir);
-
-    if (!silent) {
-      console.log(chalk.gray(`  📦 Backed up: ${filename}`));
-    }
-
-    return backupPath;
+    return await withLock(filePath, () => _doBackupCopy(filePath, silent));
   } catch (error) {
     if (!silent) {
       console.log(chalk.yellow(`  ⚠️  Backup failed for: ${path.basename(filePath)}`));

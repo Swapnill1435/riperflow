@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { Mode } from './types.js';
 import { GateStage } from './gates.js';
+import { withLock } from '../memory/lock.js';
 
 /**
  * Violation Severity Levels
@@ -132,8 +133,10 @@ export class ViolationLogger {
     const logFile = this.getLogFilePath();
 
     try {
-      // Append to log file
-      await fs.appendFile(logFile, logLine, 'utf8');
+      // Append to log file under an exclusive lock
+      await withLock(logFile, async () => {
+        await fs.appendFile(logFile, logLine, 'utf8');
+      });
 
       // Console output if enabled
       if (this.config.consoleOutput) {
@@ -393,9 +396,11 @@ export class ViolationLogger {
   async clear(): Promise<void> {
     await this.initialize();
     const logFile = this.getLogFilePath();
-    
+
     try {
-      await fs.writeFile(logFile, '', 'utf8');
+      await withLock(logFile, async () => {
+        await fs.writeFile(logFile, '', 'utf8');
+      });
     } catch (error) {
       console.error('Failed to clear violation log:', error);
     }
@@ -424,13 +429,15 @@ export class ViolationLogger {
     );
 
     try {
-      const archiveContent = toArchive.map(v => JSON.stringify(v)).join('\n') + '\n';
-      await fs.writeFile(archiveFile, archiveContent, 'utf8');
-      
-      // Rewrite main log with kept violations
-      const keepContent = toKeep.map(v => JSON.stringify(v)).join('\n') + (toKeep.length > 0 ? '\n' : '');
-      await fs.writeFile(this.getLogFilePath(), keepContent, 'utf8');
-      
+      await withLock(this.getLogFilePath(), async () => {
+        const archiveContent = toArchive.map(v => JSON.stringify(v)).join('\n') + '\n';
+        await fs.writeFile(archiveFile, archiveContent, 'utf8');
+
+        // Rewrite main log with kept violations
+        const keepContent = toKeep.map(v => JSON.stringify(v)).join('\n') + (toKeep.length > 0 ? '\n' : '');
+        await fs.writeFile(this.getLogFilePath(), keepContent, 'utf8');
+      });
+
       return archiveFile;
     } catch (error) {
       console.error('Failed to archive violations:', error);

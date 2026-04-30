@@ -244,12 +244,17 @@ export async function withLock<T>(
   await fs.ensureFile(file);
 
   const release = await lockfile.lock(file, {
+    // proper-lockfile accepts a retry options object here even though
+    // the inferred TS types only show `number` — cast to satisfy tsc.
+    // Use factor:1 (constant interval) instead of exponential backoff to
+    // avoid thundering-herd failures when many callers contend simultaneously.
     retries: {
-      retries: options?.retries ?? 20,
-      minTimeout: options?.minTimeout ?? 10,
-      maxTimeout: options?.maxTimeout ?? 100,
-    },
-    stale: options?.stale ?? 10000,
+      retries: options?.retries ?? 100,
+      minTimeout: options?.minTimeout ?? 50,
+      maxTimeout: options?.maxTimeout ?? 200,
+      factor: 1,
+    } as unknown as number,
+    stale: options?.stale ?? 30000,
     realpath: false,
   });
 

@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { loadConfig } from '../config/loader.js';
 import fs from 'fs-extra';
 import path from 'path';
+import { withLock } from '../memory/lock.js';
 
 export interface PRD {
   id: string;
@@ -144,8 +145,10 @@ Any technical considerations.
   };
   
   const filePath = path.join(prdDir, `${id}.json`);
-  await fs.writeJson(filePath, prd, { spaces: 2 });
-  
+  await withLock(filePath, async () => {
+    await fs.writeJson(filePath, prd, { spaces: 2 });
+  });
+
   console.log(chalk.green(`\n✓ Created PRD: ${prd.title} (${id})\n`));
   console.log(chalk.gray(`  File: ${filePath}\n`));
 }
@@ -213,8 +216,10 @@ async function updatePRDStatus(prdDir: string, id: string | undefined, status: s
   prd.status = status as PRD['status'];
   prd.updatedAt = new Date().toISOString();
   
-  await fs.writeJson(filePath, prd, { spaces: 2 });
-  
+  await withLock(filePath, async () => {
+    await fs.writeJson(filePath, prd, { spaces: 2 });
+  });
+
   const statusColors: Record<string, any> = {
     draft: chalk.yellow,
     review: chalk.cyan,

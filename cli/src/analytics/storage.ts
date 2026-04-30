@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { getRiperDir } from '../config/loader.js';
+import { withLock } from '../memory/lock.js';
 
 export interface AnalyticsEvent {
   timestamp: string;
@@ -20,7 +21,9 @@ export class AnalyticsStorage {
   async write(event: AnalyticsEvent): Promise<void> {
     await fs.ensureFile(this.filePath);
     const line = JSON.stringify(event) + '\n';
-    await fs.appendFile(this.filePath, line, 'utf-8');
+    await withLock(this.filePath, async () => {
+      await fs.appendFile(this.filePath, line, 'utf-8');
+    });
   }
 
   async read(limit: number = 100, since?: string): Promise<AnalyticsEvent[]> {

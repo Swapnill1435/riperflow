@@ -5,7 +5,8 @@ import { homedir } from 'os';
 import chalk from 'chalk';
 import { MEMORY_FILES } from '../core/modes.js';
 import { fileURLToPath } from 'url';
-import { autoBackupFile } from '../commands/backup.js';
+import { _doBackupCopy } from '../commands/backup.js';
+import { withLock } from '../memory/lock.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -108,8 +109,10 @@ export async function loadConfig(): Promise<ProjectConfig | null> {
 
 export async function saveConfig(config: ProjectConfig): Promise<void> {
   const configPath = path.join(getRiperDir(), 'config.json');
-  await autoBackupFile(configPath, true);
-  await fs.writeJson(configPath, config, { spaces: 2 });
+  await withLock(configPath, async () => {
+    await _doBackupCopy(configPath, true);
+    await fs.writeJson(configPath, config, { spaces: 2 });
+  });
 }
 
 export async function loadState(): Promise<RuntimeState | null> {
@@ -129,8 +132,10 @@ export async function loadState(): Promise<RuntimeState | null> {
 
 export async function saveState(state: RuntimeState): Promise<void> {
   const statePath = path.join(getRiperDir(), 'state.json');
-  await autoBackupFile(statePath, true);
-  await fs.writeJson(statePath, state, { spaces: 2 });
+  await withLock(statePath, async () => {
+    await _doBackupCopy(statePath, true);
+    await fs.writeJson(statePath, state, { spaces: 2 });
+  });
 }
 
 export function getDefaultConfig(): ProjectConfig {
