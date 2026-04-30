@@ -135,9 +135,9 @@ export async function loadTieredContext(
   if (tier >= 3) {
     const memoryFiles = [
       { id: 'projectbrief', file: MEMORY_FILES.projectbrief },
+      { id: 'systemPatterns', file: MEMORY_FILES.systemPatterns },
       { id: 'techContext', file: MEMORY_FILES.techContext },
-      { id: 'progress', file: MEMORY_FILES.progress },
-      { id: 'decisions', file: MEMORY_FILES.decisions }
+      { id: 'progress', file: MEMORY_FILES.progress }
     ];
 
     for (const { id, file } of memoryFiles) {
@@ -179,7 +179,7 @@ function generateCoreSymbols(options?: {
     '# RIPER Core Context',
     '',
     `Mode: ${options?.currentMode || 'research'}`,
-    `Role: ${options?.currentRole || 'developer'}`,
+    `Role: ${options?.currentRole || 'dev'}`,
     `Gate: ${options?.currentGate || 'design'}`,
     '',
     '## Mode Permissions',

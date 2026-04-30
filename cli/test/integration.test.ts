@@ -95,18 +95,33 @@ describe('Integration Tests', () => {
 
   describe('Tiered Context Loading', () => {
     it('should load tier 1 context', async () => {
-      const { loadTieredContext, CONTEXT_TIERS } = await import('../src/memory/loader.js');
-      
+      const { loadTieredContext } = await import('../src/memory/loader.js');
+
       // Create a test memory file
       await fs.writeFile(
         path.join(testProjectPath, '.riper', 'activeContext.md'),
         '# Active Context\n\nTest content'
       );
-      
+
       const context = await loadTieredContext(testProjectPath, 1);
       expect(context.tier.id).toBe(1);
       expect(context.files.length).toBeGreaterThan(0);
       expect(context.totalTokens).toBeGreaterThan(0);
+    });
+
+    it('should load tier 3 context without dereferencing missing keys', async () => {
+      const { loadTieredContext } = await import('../src/memory/loader.js');
+
+      for (const name of ['projectbrief.md', 'systemPatterns.md', 'techContext.md', 'progress.md']) {
+        await fs.writeFile(path.join(testProjectPath, '.riper', name), `# ${name}\n\nbody`);
+      }
+
+      const context = await loadTieredContext(testProjectPath, 3);
+      expect(context.tier.id).toBe(3);
+      // tier 3 should include core symbols + at least one bank file
+      const ids = context.files.map(f => f.id);
+      expect(ids).toContain('core-symbols');
+      expect(ids.some(id => ['projectbrief', 'systemPatterns', 'techContext', 'progress'].includes(id))).toBe(true);
     });
   });
 });
