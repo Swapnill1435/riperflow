@@ -1,7 +1,8 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { getRiperDir } from '../config/loader.js';
+import chalk from 'chalk';
 import { withLock } from '../memory/lock.js';
+import { AnalyticsDatabase } from './database.js';
 
 export interface AnalyticsEvent {
   timestamp: string;
@@ -10,13 +11,39 @@ export interface AnalyticsEvent {
   tool?: string;
 }
 
+let sqliteWarningPrinted = false;
+
 export class AnalyticsStorage {
   private filePath: string;
+  private projectPath: string;
   private cachedEvents: AnalyticsEvent[] | null = null;
+  private db: AnalyticsDatabase | null = null;
+  private dbInitTried: boolean = false;
 
   constructor(projectPath?: string) {
-    const basePath = projectPath || process.cwd();
-    this.filePath = path.join(basePath, '.riper', 'analytics.jsonl');
+    this.projectPath = projectPath || process.cwd();
+    this.filePath = path.join(this.projectPath, '.riper', 'analytics.jsonl');
+  }
+
+  private async ensureDb(): Promise<AnalyticsDatabase | null> {
+    if (this.dbInitTried) return this.db;
+    this.dbInitTried = true;
+    const candidate = new AnalyticsDatabase(this.projectPath);
+    try {
+      await candidate.initialize();
+      if (candidate.isSQLiteAvailable()) {
+        this.db = candidate;
+      } else if (!sqliteWarningPrinted) {
+        sqliteWarningPrinted = true;
+        // Only print on a TTY so test runs stay quiet
+        if (process.stderr.isTTY) {
+          console.error(chalk.gray('  ⓘ better-sqlite3 not loaded — analytics will use JSONL only.'));
+        }
+      }
+    } catch {
+      // Silently continue with JSONL only
+    }
+    return this.db;
   }
 
   /**
@@ -55,9 +82,27 @@ export class AnalyticsStorage {
   async write(event: AnalyticsEvent): Promise<void> {
     await fs.ensureFile(this.filePath);
     const line = JSON.stringify(event) + '\n';
+
     await withLock(this.filePath, async () => {
       await fs.appendFile(this.filePath, line, 'utf-8');
+
+      // Write-through to SQLite. On any failure, JSONL has the canonical
+      // record, so we just continue.
+      const db = await this.ensureDb();
+      if (db) {
+        try {
+          await db.recordEvent({
+            timestamp: event.timestamp,
+            type: event.event,
+            data: event.data,
+            tool: event.tool,
+          });
+        } catch {
+          // Don't let SQLite hiccups kill an analytics append.
+        }
+      }
     });
+
     this.cachedEvents = null; // Invalidate so the next read sees the append
   }
 
@@ -128,6 +173,21 @@ export class AnalyticsStorage {
 
   getFilePath(): string {
     return this.filePath;
+  }
+
+  /**
+   * Wipe the SQLite index and rebuild it from the canonical JSONL log.
+   * Returns the number of rows inserted. Useful when SQLite was added
+   * after JSONL accumulated history, or after a manual JSONL edit.
+   */
+  async rebuildSQLiteFromJSONL(): Promise<{ migrated: number; errors: number }> {
+    // Reset dbInitTried so ensureDb re-initializes against the (possibly
+    // newly created) db file after a deletion.
+    this.dbInitTried = false;
+    this.db = null;
+    const db = await this.ensureDb();
+    if (!db) return { migrated: 0, errors: 0 };
+    return db.migrateFromJSONL(this.filePath);
   }
 }
 
