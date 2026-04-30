@@ -5,7 +5,6 @@ import fs from 'fs-extra';
 import path from 'path';
 import { withLock } from '../memory/lock.js';
 
-const MAX_BACKUPS = 10;
 
 function getBackupsDir(): string {
   return path.join(getRiperDir(), 'backups');
@@ -59,14 +58,16 @@ export async function autoBackupFile(filePath: string, silent: boolean = false):
 
 async function cleanupOldBackups(filename: string, backupsDir: string): Promise<void> {
   try {
+    const config = await loadConfig();
+    const maxBackups = config?.backup?.maxBackups ?? 10;
     const files = await fs.readdir(backupsDir);
     const backupFiles = files
       .filter(f => f.startsWith(`${filename}.`) && f.endsWith('.bak'))
       .sort()
       .reverse();
 
-    if (backupFiles.length > MAX_BACKUPS) {
-      const toDelete = backupFiles.slice(MAX_BACKUPS);
+    if (backupFiles.length > maxBackups) {
+      const toDelete = backupFiles.slice(maxBackups);
       for (const file of toDelete) {
         await fs.remove(path.join(backupsDir, file));
       }
