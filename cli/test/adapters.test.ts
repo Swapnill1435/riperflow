@@ -26,4 +26,37 @@ describe('adapter registry', () => {
       expect(a, `adapter for "${id}"`).not.toBeNull();
     }
   });
+
+  it('vscode adapter writes to .vscode/.riper.md', async () => {
+    const fs = await import('fs-extra');
+    const os = await import('os');
+    const path = await import('path');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-vscode-'));
+    try {
+      const adapter = await createAdapter('vscode', root);
+      expect(adapter).not.toBeNull();
+      const result = await adapter!.install(false);
+      expect(result.success).toBe(true);
+      expect(await fs.pathExists(path.join(root, '.vscode/.riper.md'))).toBe(true);
+      // Should NOT create a rules/ subdir
+      expect(await fs.pathExists(path.join(root, '.vscode/rules'))).toBe(false);
+    } finally {
+      await fs.remove(root);
+    }
+  });
+
+  it('vscode dryRun writes nothing', async () => {
+    const fs = await import('fs-extra');
+    const os = await import('os');
+    const path = await import('path');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-vscode-dry-'));
+    try {
+      const adapter = await createAdapter('vscode', root);
+      const result = await adapter!.install(true);
+      expect(result.success).toBe(true);
+      expect(await fs.pathExists(path.join(root, '.vscode/.riper.md'))).toBe(false);
+    } finally {
+      await fs.remove(root);
+    }
+  });
 });

@@ -135,10 +135,11 @@ const ADAPTER_REGISTRY: Record<string, AdapterFactory> = {
   roo: async (p, o) => { const { RooCodeAdapter } = await import('./roo-code.js'); return new RooCodeAdapter(p, o); },
   'roo-code': async (p, o) => { const { RooCodeAdapter } = await import('./roo-code.js'); return new RooCodeAdapter(p, o); },
   windsurf: async (p, o) => { const { WindsurfAdapter } = await import('./windsurf.js'); return new WindsurfAdapter(p, o); },
+  vscode: async (p, o) => { const { VSCodeAdapter } = await import('./vscode.js'); return new VSCodeAdapter(p, o); },
 };
 
 // Distinct id list (deduped, canonical names — used by sync, init prompts, and tests)
-export const ADAPTER_IDS: string[] = ['cursor', 'claude-code', 'opencode', 'kilocode', 'cline', 'codex', 'aider', 'roo', 'windsurf'];
+export const ADAPTER_IDS: string[] = ['cursor', 'claude-code', 'opencode', 'kilocode', 'cline', 'codex', 'aider', 'roo', 'windsurf', 'vscode'];
 
 export async function createAdapter(
   toolName: string,
