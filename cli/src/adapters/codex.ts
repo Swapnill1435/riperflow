@@ -137,6 +137,7 @@ Codex updates (in Execute mode):
       try {
         // Create AGENT.md in project root (Codex convention)
         const agentContent = this.getAgentContent();
+        await fs.ensureDir(path.dirname(agentPath));
         await fs.writeFile(agentPath, agentContent, 'utf8');
 
         // Create .codex/config.json
@@ -155,6 +156,7 @@ Codex updates (in Execute mode):
         await fs.writeJson(configPath, config, { spaces: 2 });
 
         // Create .codex/instructions.md as alternative
+        await fs.ensureDir(path.dirname(instructionsPath));
         await fs.writeFile(instructionsPath, agentContent, 'utf8');
       } catch (error) {
         return { success: false, message: `Failed to create Codex config: ${error}` };

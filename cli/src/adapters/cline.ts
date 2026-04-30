@@ -81,8 +81,6 @@ export class ClineAdapter extends BaseAdapter {
 
     const instructionsPath = path.join(this.projectPath, '.cline', 'global_instructions.json');
     extraFiles.push(instructionsPath);
-    const customInstructionsPath = path.join(this.projectPath, '.cline', 'instructions', 'riper.md');
-    extraFiles.push(customInstructionsPath);
     const settingsPath = path.join(this.projectPath, '.cline', 'settings.json');
     extraFiles.push(settingsPath);
 
@@ -92,9 +90,8 @@ export class ClineAdapter extends BaseAdapter {
         await fs.ensureDir(path.dirname(instructionsPath));
         await fs.writeJson(instructionsPath, this.getGlobalInstructions(), { spaces: 2 });
 
-        // Create custom instructions file
-        await fs.ensureDir(path.dirname(customInstructionsPath));
-        await fs.writeFile(customInstructionsPath, this.getRulesContent(), 'utf8');
+        // Note: the custom instructions file (.cline/instructions/riper.md) is
+        // already written by super.install() since it matches getRulesFilePath().
 
         // Create .cline/settings.json
         const settings = {
