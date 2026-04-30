@@ -35,7 +35,7 @@ program
       if (config) {
         const tools = await detectTools();
         if (tools.length > 0) {
-          console.log(chalk.gray(`\nDetected tools: ${tools.join(', ')}\n`));
+          console.log(chalk.gray(`\nDetected tools: ${tools.map(t => t.displayName).join(', ')}\n`));
         }
       }
     } catch {
