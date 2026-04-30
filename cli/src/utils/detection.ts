@@ -1,7 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { execSync } from 'child_process';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import chalk from 'chalk';
+
+const execAsync = promisify(exec);
 
 export interface DetectedTool {
   name: string;
@@ -89,12 +92,12 @@ const TOOL_CONFIGS = [
   }
 ];
 
-function isExecutableAvailable(name: string): boolean {
+async function isExecutableAvailable(name: string): Promise<boolean> {
   try {
     if (process.platform === 'win32') {
-      execSync(`where ${name}`, { stdio: 'ignore' });
+      await execAsync(`where ${name}`);
     } else {
-      execSync(`which ${name}`, { stdio: 'ignore' });
+      await execAsync(`which ${name}`);
     }
     return true;
   } catch {
@@ -112,27 +115,40 @@ function checkPathExists(checkPath: string): boolean {
 
 export async function detectTool(config: typeof TOOL_CONFIGS[0]): Promise<DetectedTool> {
   const hasConfigDir = config.checkPaths.some(p => checkPathExists(p));
-  const hasExecutable = config.executables.some(e => isExecutableAvailable(e));
-  
+  const executableChecks = await Promise.all(config.executables.map(isExecutableAvailable));
+  const hasExecutable = executableChecks.some(Boolean);
+
   return {
     name: config.name,
     displayName: config.displayName,
     configDir: config.configDir,
-    available: hasConfigDir || hasExecutable
+    available: hasConfigDir || hasExecutable,
   };
 }
 
+let cachedTools: { tools: DetectedTool[]; expiresAt: number } | null = null;
+const CACHE_TTL_MS = 60_000;
+
 export async function detectTools(): Promise<DetectedTool[]> {
+  if (process.env.RIPER_FORCE_DETECT !== '1' && cachedTools && Date.now() < cachedTools.expiresAt) {
+    return cachedTools.tools;
+  }
+
   const results: DetectedTool[] = [];
-  
   for (const config of TOOL_CONFIGS) {
     const tool = await detectTool(config);
     if (tool.available) {
       results.push(tool);
     }
   }
-  
+
+  cachedTools = { tools: results, expiresAt: Date.now() + CACHE_TTL_MS };
   return results;
+}
+
+// Allow tests to clear the cache between runs
+export function clearDetectToolsCache(): void {
+  cachedTools = null;
 }
 
 export async function detectAndPrintTools(): Promise<void> {

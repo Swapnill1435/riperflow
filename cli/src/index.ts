@@ -31,6 +31,13 @@ program
 
 program
   .hook('preAction', async (_thisCommand, actionCommand) => {
+    // Defensive skip — Commander already short-circuits for --help/--version
+    // but explicit check makes it obvious and covers any edge case.
+    const argv = process.argv.slice(2);
+    if (argv.includes('--help') || argv.includes('-h') || argv.includes('--version') || argv.includes('-V') || argv[0] === 'help') {
+      return;
+    }
+
     try {
       const config = await loadConfig();
       if (config) {
