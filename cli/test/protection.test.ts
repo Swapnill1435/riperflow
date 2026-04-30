@@ -19,6 +19,17 @@ describe('Protection', () => {
       expect(PROTECTION_LEVELS.warn.allowsWrite).toBe(true);
     });
 
+    it('all level ids are unique', () => {
+      const ids = Object.values(PROTECTION_LEVELS).map(l => l.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('each level id matches its registry key', () => {
+      for (const [key, level] of Object.entries(PROTECTION_LEVELS)) {
+        expect(level.id).toBe(key);
+      }
+    });
+
     it('should have confirm level', () => {
       expect(PROTECTION_LEVELS.confirm).toBeDefined();
       expect(PROTECTION_LEVELS.confirm.allowsWrite).toBe(true);

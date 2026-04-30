@@ -23,7 +23,7 @@ export const PROTECTION_LEVELS: Record<ProtectionLevel, Protection> = {
     requiresApproval: false
   },
   warn: {
-    id: 'none',
+    id: 'warn',
     name: 'Warn',
     symbol: '⚐',
     emoji: '⚠️',
