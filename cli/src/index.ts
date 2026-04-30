@@ -127,9 +127,12 @@ program
 
 program
   .command('analytics')
-  .description('Show analytics')
-  .option('-e, --export', 'Export analytics')
+  .description('Show or manage analytics')
+  .argument('[action]', 'Action: stats (default), weekly, export, migrate')
   .option('-f, --format <format>', 'Export format: json, csv', 'json')
+  .option('-l, --limit <n>', 'Max events for export', '1000')
+  .option('-s, --since <iso>', 'Only events at or after this ISO timestamp')
+  .option('-o, --output <path>', 'Write export to a file (defaults to stdout)')
   .action(analyticsCommand);
 
 program
