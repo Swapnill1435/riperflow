@@ -1,6 +1,6 @@
 import { Mode, Phase, RuntimeState, ModeDefinition } from './types.js';
 import { getMode, getPhase, MODES, PHASES } from './modes.js';
-import { loadState, saveState } from '../memory/manager.js';
+import { loadState, saveState } from '../config/loader.js';
 import chalk from 'chalk';
 
 export class WorkflowEngine {

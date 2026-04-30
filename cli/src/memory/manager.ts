@@ -1,8 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { getRiperDir, getMemoryBankDir } from '../config/loader.js';
-import { RuntimeState } from '../core/types.js';
+import { getMemoryBankDir } from '../config/loader.js';
 import { MEMORY_FILES } from '../core/modes.js';
 import { autoBackupFile } from '../commands/backup.js';
 
@@ -196,39 +195,3 @@ export async function getAllMemoryFiles(): Promise<Record<string, string>> {
   return files;
 }
 
-export async function loadState(): Promise<RuntimeState | null> {
-  const statePath = path.join(getRiperDir(), 'state.json');
-  
-  try {
-    if (await fs.pathExists(statePath)) {
-      return await fs.readJson(statePath);
-    }
-  } catch (error) {
-    console.error('Error loading state:', error);
-  }
-  
-  return null;
-}
-
-export async function saveState(state: RuntimeState): Promise<void> {
-  const statePath = path.join(getRiperDir(), 'state.json');
-  await fs.writeJson(statePath, state, { spaces: 2 });
-}
-
-export async function initializeState(): Promise<RuntimeState> {
-  const state = getDefaultState();
-  await saveState(state);
-  return state;
-}
-
-function getDefaultState(): RuntimeState {
-  return {
-    currentMode: 'research',
-    currentPhase: 'uninitiated',
-    lastModeChange: new Date().toISOString(),
-    session: {
-      startTime: new Date().toISOString(),
-      modeHistory: []
-    }
-  };
-}
