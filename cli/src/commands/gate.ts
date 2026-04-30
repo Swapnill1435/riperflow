@@ -91,7 +91,7 @@ function listAllGates(gateStatuses: GateStatuses): void {
   console.log(chalk.bold('\n🚪 Quality Gates\n'));
 
   for (const gate of gates) {
-    const status = gateStatuses[gate.id as GateStage];
+    const status = gateStatuses[gate.id];
     const approved = status?.approved ? chalk.green('✓ Approved') : chalk.yellow('○ Pending');
 
     console.log(`\n  ${gate.emoji} ${gate.name} (${gate.symbol})`);
