@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createAdapter, ADAPTER_IDS } from '../src/adapters/base.js';
+import * as os from 'os';
+import * as fs2 from 'fs-extra';
+import * as path2 from 'path';
 
 describe('adapter registry', () => {
   it('exposes ADAPTER_IDS as a non-empty list', () => {
@@ -59,4 +62,41 @@ describe('adapter registry', () => {
       await fs.remove(root);
     }
   });
+});
+
+describe('install(dryRun)', () => {
+  // Helper: snapshot file tree
+  async function listAll(root: string): Promise<string[]> {
+    if (!(await fs2.pathExists(root))) return [];
+    const out: string[] = [];
+    async function walk(dir: string) {
+      for (const entry of await fs2.readdir(dir, { withFileTypes: true })) {
+        const full = path2.join(dir, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else out.push(full);
+      }
+    }
+    await walk(root);
+    return out.sort();
+  }
+
+  for (const id of ADAPTER_IDS) {
+    it(`${id}: dryRun writes no files and reports filesCreated`, async () => {
+      const root = await fs2.mkdtemp(path2.join(os.tmpdir(), `riper-${id}-dry-`));
+      try {
+        const before = await listAll(root);
+        const adapter = await createAdapter(id, root);
+        expect(adapter, id).not.toBeNull();
+        const result = await adapter!.install(true);
+        const after = await listAll(root);
+        expect(after, `${id} should write nothing on dry-run`).toEqual(before);
+        expect(result.success).toBe(true);
+        // Every adapter should report at least one file it WOULD have created
+        expect(Array.isArray(result.filesCreated)).toBe(true);
+        expect(result.filesCreated!.length, `${id} should report filesCreated`).toBeGreaterThan(0);
+      } finally {
+        await fs2.remove(root);
+      }
+    });
+  }
 });

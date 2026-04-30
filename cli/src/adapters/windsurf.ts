@@ -1,4 +1,4 @@
-import { BaseAdapter, AdapterConfig } from './base.js';
+import { BaseAdapter, AdapterConfig, AdapterResult } from './base.js';
 import { generateHybridRules, generateToolConfig } from './rules-generator.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -91,42 +91,51 @@ Cascade generates commits with RIPER prefixes:
 `;
   }
 
-  async install(): Promise<{ success: boolean; message: string }> {
-    const result = await super.install();
+  async install(dryRun: boolean = false): Promise<AdapterResult> {
+    const result = await super.install(dryRun);
     if (!result.success) return result;
 
-    try {
-      // Create Windsurf cascade.md (global instructions)
-      const cascadePath = path.join(this.projectPath, '.windsurf', 'cascade.md');
-      const cascadeContent = this.getCascadeContent();
-      await fs.writeFile(cascadePath, cascadeContent, 'utf8');
+    const extraFiles: string[] = [];
 
-      // Create .windsurf/config.json for RIPER settings
-      const configPath = path.join(this.projectPath, '.windsurf', 'config.json');
-      const config = {
-        ripper: {
-          enabled: true,
-          mode: this.currentMode || 'research',
-          role: this.currentRole || 'developer',
-          gate: this.currentGate || 'design',
-          enforcement: {
-            blockProtectedWrites: true,
-            confirmGuardedWrites: true,
-            logAllOperations: true
+    const cascadePath = path.join(this.projectPath, '.windsurf', 'cascade.md');
+    extraFiles.push(cascadePath);
+    const configPath = path.join(this.projectPath, '.windsurf', 'config.json');
+    extraFiles.push(configPath);
+
+    if (!dryRun) {
+      try {
+        // Create Windsurf cascade.md (global instructions)
+        await fs.writeFile(cascadePath, this.getCascadeContent(), 'utf8');
+
+        // Create .windsurf/config.json for RIPER settings
+        const config = {
+          ripper: {
+            enabled: true,
+            mode: this.currentMode || 'research',
+            role: this.currentRole || 'developer',
+            gate: this.currentGate || 'design',
+            enforcement: {
+              blockProtectedWrites: true,
+              confirmGuardedWrites: true,
+              logAllOperations: true
+            }
+          },
+          cascade: {
+            autoReadMemoryBank: true,
+            updateContextOnModeSwitch: true,
+            suggestModeTransitions: true
           }
-        },
-        cascade: {
-          autoReadMemoryBank: true,
-          updateContextOnModeSwitch: true,
-          suggestModeTransitions: true
-        }
-      };
-      await fs.writeJson(configPath, config, { spaces: 2 });
-
-      return { success: true, message: 'Windsurf adapter installed with cascade.md and config' };
-    } catch (error) {
-      return { success: false, message: `Failed to create Windsurf config: ${error}` };
+        };
+        await fs.writeJson(configPath, config, { spaces: 2 });
+      } catch (error) {
+        return { success: false, message: `Failed to create Windsurf config: ${error}` };
+      }
     }
+
+    return {
+      ...result,
+      filesCreated: [...(result.filesCreated ?? []), ...extraFiles]
+    };
   }
 
   /**

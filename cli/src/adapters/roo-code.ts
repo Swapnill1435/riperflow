@@ -1,4 +1,4 @@
-import { BaseAdapter, AdapterConfig } from './base.js';
+import { BaseAdapter, AdapterConfig, AdapterResult } from './base.js';
 import { generateHybridRules, generateToolConfig } from './rules-generator.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -79,27 +79,36 @@ Then follow normal Roo Code instructions.
    * Install Roo Code configuration
    * Creates .roo/rules/riper.md and settings
    */
-  async install(): Promise<{ success: boolean; message: string }> {
-    const result = await super.install();
+  async install(dryRun: boolean = false): Promise<AdapterResult> {
+    const result = await super.install(dryRun);
     if (!result.success) return result;
 
-    try {
-      // Create Roo-specific settings
-      const settingsPath = path.join(this.projectPath, '.roo', 'settings.json');
-      const settings = {
-        customInstructions: this.getSystemPromptAdditions(),
-        ripperMode: this.currentMode || 'research',
-        ripperRole: this.currentRole || 'developer',
-        ripperGate: this.currentGate || 'design'
-      };
+    const extraFiles: string[] = [];
 
-      await fs.ensureDir(path.dirname(settingsPath));
-      await fs.writeJson(settingsPath, settings, { spaces: 2 });
+    const settingsPath = path.join(this.projectPath, '.roo', 'settings.json');
+    extraFiles.push(settingsPath);
 
-      return { success: true, message: 'Roo Code adapter installed with settings' };
-    } catch (error) {
-      return { success: false, message: `Failed to create settings: ${error}` };
+    if (!dryRun) {
+      try {
+        // Create Roo-specific settings
+        const settings = {
+          customInstructions: this.getSystemPromptAdditions(),
+          ripperMode: this.currentMode || 'research',
+          ripperRole: this.currentRole || 'developer',
+          ripperGate: this.currentGate || 'design'
+        };
+
+        await fs.ensureDir(path.dirname(settingsPath));
+        await fs.writeJson(settingsPath, settings, { spaces: 2 });
+      } catch (error) {
+        return { success: false, message: `Failed to create settings: ${error}` };
+      }
     }
+
+    return {
+      ...result,
+      filesCreated: [...(result.filesCreated ?? []), ...extraFiles]
+    };
   }
 
   /**

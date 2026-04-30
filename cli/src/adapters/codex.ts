@@ -1,4 +1,4 @@
-import { BaseAdapter, AdapterConfig } from './base.js';
+import { BaseAdapter, AdapterConfig, AdapterResult } from './base.js';
 import { generateHybridRules, generateToolConfig } from './rules-generator.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -120,39 +120,51 @@ Codex updates (in Execute mode):
   /**
    * Codex uses AGENT.md for instructions
    */
-  async install(): Promise<{ success: boolean; message: string }> {
-    const result = await super.install();
+  async install(dryRun: boolean = false): Promise<AdapterResult> {
+    const result = await super.install(dryRun);
     if (!result.success) return result;
 
-    try {
-      // Create AGENT.md in project root (Codex convention)
-      const agentPath = path.join(this.projectPath, 'AGENT.md');
-      const agentContent = this.getAgentContent();
-      await fs.writeFile(agentPath, agentContent, 'utf8');
+    const extraFiles: string[] = [];
 
-      // Create .codex/config.json
-      const configPath = path.join(this.projectPath, '.codex', 'config.json');
-      const config: CodexConfig = {
-        instructions: 'AGENT.md',
-        mode: this.currentMode || 'research',
-        role: this.currentRole || 'developer',
-        gate: this.currentGate || 'design',
-        ripper: {
-          enabled: true,
-          enforcePermissions: true,
-          checkProtection: true
-        }
-      };
-      await fs.writeJson(configPath, config, { spaces: 2 });
+    const agentPath = path.join(this.projectPath, 'AGENT.md');
+    extraFiles.push(agentPath);
+    const configPath = path.join(this.projectPath, '.codex', 'config.json');
+    extraFiles.push(configPath);
+    const instructionsPath = path.join(this.projectPath, '.codex', 'instructions.md');
+    extraFiles.push(instructionsPath);
 
-      // Create .codex/instructions.md as alternative
-      const instructionsPath = path.join(this.projectPath, '.codex', 'instructions.md');
-      await fs.writeFile(instructionsPath, agentContent, 'utf8');
+    if (!dryRun) {
+      try {
+        // Create AGENT.md in project root (Codex convention)
+        const agentContent = this.getAgentContent();
+        await fs.writeFile(agentPath, agentContent, 'utf8');
 
-      return { success: true, message: 'Codex adapter installed with AGENT.md and config' };
-    } catch (error) {
-      return { success: false, message: `Failed to create Codex config: ${error}` };
+        // Create .codex/config.json
+        const config: CodexConfig = {
+          instructions: 'AGENT.md',
+          mode: this.currentMode || 'research',
+          role: this.currentRole || 'developer',
+          gate: this.currentGate || 'design',
+          ripper: {
+            enabled: true,
+            enforcePermissions: true,
+            checkProtection: true
+          }
+        };
+        await fs.ensureDir(path.dirname(configPath));
+        await fs.writeJson(configPath, config, { spaces: 2 });
+
+        // Create .codex/instructions.md as alternative
+        await fs.writeFile(instructionsPath, agentContent, 'utf8');
+      } catch (error) {
+        return { success: false, message: `Failed to create Codex config: ${error}` };
+      }
     }
+
+    return {
+      ...result,
+      filesCreated: [...(result.filesCreated ?? []), ...extraFiles]
+    };
   }
 
   /**

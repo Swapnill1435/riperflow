@@ -1,4 +1,4 @@
-import { BaseAdapter, AdapterConfig } from './base.js';
+import { BaseAdapter, AdapterConfig, AdapterResult } from './base.js';
 import { generateHybridRules, generateToolConfig } from './rules-generator.js';
 import path from 'path';
 import fs from 'fs-extra';
@@ -73,44 +73,56 @@ export class ClineAdapter extends BaseAdapter {
   /**
    * Cline uses global_instructions.json + custom instructions
    */
-  async install(): Promise<{ success: boolean; message: string }> {
-    const result = await super.install();
+  async install(dryRun: boolean = false): Promise<AdapterResult> {
+    const result = await super.install(dryRun);
     if (!result.success) return result;
 
-    try {
-      // Create Cline global instructions
-      const instructionsPath = path.join(this.projectPath, '.cline', 'global_instructions.json');
-      const instructions = this.getGlobalInstructions();
-      await fs.writeJson(instructionsPath, instructions, { spaces: 2 });
+    const extraFiles: string[] = [];
 
-      // Create custom instructions file
-      const customInstructionsPath = path.join(this.projectPath, '.cline', 'instructions', 'riper.md');
-      const customContent = this.getRulesContent();
-      await fs.writeFile(customInstructionsPath, customContent, 'utf8');
+    const instructionsPath = path.join(this.projectPath, '.cline', 'global_instructions.json');
+    extraFiles.push(instructionsPath);
+    const customInstructionsPath = path.join(this.projectPath, '.cline', 'instructions', 'riper.md');
+    extraFiles.push(customInstructionsPath);
+    const settingsPath = path.join(this.projectPath, '.cline', 'settings.json');
+    extraFiles.push(settingsPath);
 
-      // Create .cline/settings.json
-      const settingsPath = path.join(this.projectPath, '.cline', 'settings.json');
-      const settings = {
-        autoApprove: {
-          readFiles: true,
-          writeFiles: false, // RIPER enforces protection
-          executeCommands: false
-        },
-        ripper: {
-          enforceModePermissions: true,
-          checkProtectionBeforeWrite: true,
-          autoUpdateContext: true,
-          mode: this.currentMode || 'research',
-          role: this.currentRole || 'developer',
-          gate: this.currentGate || 'design'
-        }
-      };
-      await fs.writeJson(settingsPath, settings, { spaces: 2 });
+    if (!dryRun) {
+      try {
+        // Create Cline global instructions
+        await fs.ensureDir(path.dirname(instructionsPath));
+        await fs.writeJson(instructionsPath, this.getGlobalInstructions(), { spaces: 2 });
 
-      return { success: true, message: 'Cline adapter installed with global instructions' };
-    } catch (error) {
-      return { success: false, message: `Failed to create Cline config: ${error}` };
+        // Create custom instructions file
+        await fs.ensureDir(path.dirname(customInstructionsPath));
+        await fs.writeFile(customInstructionsPath, this.getRulesContent(), 'utf8');
+
+        // Create .cline/settings.json
+        const settings = {
+          autoApprove: {
+            readFiles: true,
+            writeFiles: false, // RIPER enforces protection
+            executeCommands: false
+          },
+          ripper: {
+            enforceModePermissions: true,
+            checkProtectionBeforeWrite: true,
+            autoUpdateContext: true,
+            mode: this.currentMode || 'research',
+            role: this.currentRole || 'developer',
+            gate: this.currentGate || 'design'
+          }
+        };
+        await fs.ensureDir(path.dirname(settingsPath));
+        await fs.writeJson(settingsPath, settings, { spaces: 2 });
+      } catch (error) {
+        return { success: false, message: `Failed to create Cline config: ${error}` };
+      }
     }
+
+    return {
+      ...result,
+      filesCreated: [...(result.filesCreated ?? []), ...extraFiles]
+    };
   }
 
   /**
