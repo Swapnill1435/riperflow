@@ -230,3 +230,32 @@ export function getMemoryFileLock(projectPath: string): MemoryFileLock {
 export function createMemoryFileLock(projectPath: string): MemoryFileLock {
   return new MemoryFileLock(projectPath);
 }
+
+/**
+ * Free-function lock helper. Serializes concurrent writers on `file` via
+ * proper-lockfile. The file is created if missing. The lock is released
+ * even when `fn` throws.
+ */
+export async function withLock<T>(
+  file: string,
+  fn: () => Promise<T>,
+  options?: { retries?: number; minTimeout?: number; maxTimeout?: number; stale?: number }
+): Promise<T> {
+  await fs.ensureFile(file);
+
+  const release = await lockfile.lock(file, {
+    retries: {
+      retries: options?.retries ?? 20,
+      minTimeout: options?.minTimeout ?? 10,
+      maxTimeout: options?.maxTimeout ?? 100,
+    },
+    stale: options?.stale ?? 10000,
+    realpath: false,
+  });
+
+  try {
+    return await fn();
+  } finally {
+    await release();
+  }
+}
