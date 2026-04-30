@@ -187,10 +187,14 @@ export async function initializeState(): Promise<RuntimeState> {
 
 export async function resetConfig(): Promise<void> {
   const configPath = path.join(getRiperDir(), 'config.json');
-  await fs.writeJson(configPath, DEFAULT_CONFIG, { spaces: 2 });
+  await withLock(configPath, async () => {
+    await fs.writeJson(configPath, DEFAULT_CONFIG, { spaces: 2 });
+  });
 }
 
 export async function resetState(): Promise<void> {
   const statePath = path.join(getRiperDir(), 'state.json');
-  await fs.writeJson(statePath, DEFAULT_STATE, { spaces: 2 });
+  await withLock(statePath, async () => {
+    await fs.writeJson(statePath, DEFAULT_STATE, { spaces: 2 });
+  });
 }

@@ -249,12 +249,12 @@ export async function withLock<T>(
     // Use factor:1 (constant interval) instead of exponential backoff to
     // avoid thundering-herd failures when many callers contend simultaneously.
     retries: {
-      retries: options?.retries ?? 100,
+      retries: options?.retries ?? 30,
       minTimeout: options?.minTimeout ?? 50,
       maxTimeout: options?.maxTimeout ?? 200,
-      factor: 1,
+      factor: 1.5,
     } as unknown as number,
-    stale: options?.stale ?? 30000,
+    stale: options?.stale ?? 10000,
     realpath: false,
   });
 
