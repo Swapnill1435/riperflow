@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { loadConfig } from '../config/loader.js';
 import { createAdapter } from '../adapters/base.js';
+import { getAnalyticsStorage } from '../analytics/storage.js';
 
 export interface SyncOptions { dryRun?: boolean; }
 export interface SyncResult { updated: string[]; skipped: string[]; }
@@ -33,6 +34,16 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
     } else if (!result.success) {
       skipped.push(toolId);
     }
+  }
+
+  try {
+    await getAnalyticsStorage(process.cwd()).write({
+      timestamp: new Date().toISOString(),
+      event: 'sync',
+      data: { updated: updated.length, skipped: skipped.length, dryRun },
+    });
+  } catch {
+    // Analytics is non-blocking — never fail sync because of a logging hiccup.
   }
 
   return { updated, skipped };

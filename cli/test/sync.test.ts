@@ -57,6 +57,33 @@ describe('sync', () => {
     }
   });
 
+  it('emits a sync analytics event with updated/skipped/dryRun fields', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-sync-analytics-'));
+    const spy = vi.spyOn(process, 'cwd').mockReturnValue(tmp);
+    try {
+      await fs.ensureDir(path.join(tmp, '.riper'));
+      const cfg = getDefaultConfig();
+      cfg.tools = { cursor: true };
+      await saveConfig(cfg);
+      await ensureMemoryBank();
+
+      await sync({ dryRun: false });
+
+      const log = path.join(tmp, '.riper', 'analytics.jsonl');
+      expect(await fs.pathExists(log)).toBe(true);
+      const lines = (await fs.readFile(log, 'utf-8')).trim().split('\n').filter(Boolean);
+      const events = lines.map(l => JSON.parse(l));
+      const syncEvent = events.find(e => e.event === 'sync');
+      expect(syncEvent, 'sync event recorded').toBeTruthy();
+      expect(syncEvent.data.updated).toBeGreaterThan(0);
+      expect(syncEvent.data.skipped).toBe(0);
+      expect(syncEvent.data.dryRun).toBe(false);
+    } finally {
+      spy.mockRestore();
+      await fs.remove(tmp);
+    }
+  });
+
   it('skips disabled and unknown tool ids gracefully', async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-sync-skip-'));
     const spy = vi.spyOn(process, 'cwd').mockReturnValue(tmp);
