@@ -264,10 +264,12 @@ export function validateMCPEnv(
 /**
  * Get installation command for a server
  */
-export function getServerInstallCommand(serverName: string): string | null {
+export function getServerInstallCommand(serverName: string, mode: 'global' | 'npx' = 'npx'): string | null {
   const server = getMCPServer(serverName);
   if (!server?.npmPackage) return null;
-  return `npm install -g ${server.npmPackage}`;
+  return mode === 'global'
+    ? `npm install -g ${server.npmPackage}`
+    : `npx -y ${server.npmPackage}`;
 }
 
 /**

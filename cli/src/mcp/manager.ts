@@ -184,7 +184,7 @@ export class MCPManager {
     try {
       this.log(`Installing ${server.name} MCP server...`);
       
-      const installCmd = getServerInstallCommand(serverName);
+      const installCmd = getServerInstallCommand(serverName, 'global');
       if (!installCmd) {
         throw new Error('No installation command available');
       }
@@ -469,20 +469,39 @@ export class MCPManager {
       return { success: false, message: 'No valid server configurations found', warnings };
     }
 
-    const mcpConfig = { mcpServers };
-
     try {
       await fs.ensureDir(path.dirname(configPath));
-      await fs.writeJson(configPath, mcpConfig, { spaces: 2 });
-      return { 
-        success: true, 
-        message: `MCP config generated with ${Object.keys(mcpServers).length} servers`, 
+
+      // Read existing config (if any) so user-defined mcpServers survive.
+      let existing: Record<string, unknown> = {};
+      if (await fs.pathExists(configPath)) {
+        try {
+          existing = await fs.readJson(configPath);
+        } catch {
+          // Corrupt file — overwrite.
+          existing = {};
+        }
+      }
+
+      const existingServers = (existing.mcpServers as Record<string, unknown> | undefined) ?? {};
+      const merged = {
+        ...existing,
+        mcpServers: {
+          ...existingServers,
+          ...mcpServers, // ours win on collision (documented)
+        },
+      };
+
+      await fs.writeJson(configPath, merged, { spaces: 2 });
+      return {
+        success: true,
+        message: `MCP config written with ${Object.keys(merged.mcpServers).length} servers`,
         filePath: configPath,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
       };
     } catch (error) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `Failed to write config: ${error}`,
         warnings
       };

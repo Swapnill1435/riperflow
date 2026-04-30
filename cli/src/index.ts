@@ -101,8 +101,9 @@ program
 program
   .command('mcp')
   .description('Manage MCP services')
-  .argument('[action]', 'Action: add, remove, list, config')
+  .argument('[action]', 'Action: status, add, install, remove, config, generate')
   .argument('[service]', 'MCP service name')
+  .option('-g, --global', 'For "mcp install": run npm install -g instead of relying on npx at runtime')
   .action(mcpCommand);
 
 program

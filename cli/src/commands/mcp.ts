@@ -3,7 +3,7 @@ import { loadConfig, saveConfig } from '../config/loader.js';
 import { createMCPManager, listMCPServers, createMCPNotifier } from '../mcp/index.js';
 import { trackMcpAction } from '../analytics/index.js';
 
-export async function mcpCommand(action?: string, service?: string): Promise<void> {
+export async function mcpCommand(action?: string, service?: string, options?: { global?: boolean }): Promise<void> {
   const config = await loadConfig();
   
   if (!config) {
@@ -77,18 +77,20 @@ export async function mcpCommand(action?: string, service?: string): Promise<voi
         console.log(chalk.gray('Available: github, websearch, browser, docker\n'));
         process.exit(1);
       }
-      if (!config.mcp.servers.includes(service)) {
-        config.mcp.servers.push(service);
+      const canonical = service.toLowerCase();
+      const existsCi = config.mcp.servers.some(s => s.toLowerCase() === canonical);
+      if (!existsCi) {
+        config.mcp.servers.push(canonical);
         await saveConfig(config);
-        console.log(chalk.green(`\n✓ Added ${service} to MCP services\n`));
-        await trackMcpAction('add', service);
-        
-        const envVars = manager.getRequiredEnvVars(service);
+        console.log(chalk.green(`\n✓ Added ${canonical} to MCP services\n`));
+        await trackMcpAction('add', canonical);
+
+        const envVars = manager.getRequiredEnvVars(canonical);
         if (Object.keys(envVars).length > 0) {
-          notifier.promptCredentials(service, envVars);
+          notifier.promptCredentials(canonical, envVars);
         }
       } else {
-        console.log(chalk.yellow(`\n⚠ ${service} is already configured\n`));
+        console.log(chalk.yellow(`\n⚠ ${canonical} is already configured\n`));
       }
       break;
     }
@@ -98,6 +100,29 @@ export async function mcpCommand(action?: string, service?: string): Promise<voi
         console.log(chalk.red('❌ Please specify a service to install.'));
         process.exit(1);
       }
+
+      if (!options?.global) {
+        // Default: npx-based runtime; no global install needed.
+        console.log(chalk.cyan(`\n📦 Adding ${service.toLowerCase()} to MCP config (will be invoked via npx -y at runtime)...\n`));
+        const result = await manager.generateAllMCPConfigs([service.toLowerCase()]);
+        let okCount = 0;
+        for (const [tool, r] of Object.entries(result)) {
+          const rr = r as { success: boolean; filePath?: string; message?: string };
+          if (rr.success) {
+            console.log(chalk.green(`  ✓ ${tool}: ${rr.filePath ?? rr.message}`));
+            okCount++;
+          } else {
+            console.log(chalk.gray(`  - ${tool}: ${rr.message}`));
+          }
+        }
+        if (okCount > 0) {
+          await trackMcpAction('install', service.toLowerCase());
+          console.log(chalk.gray(`\n💡 To install globally instead, rerun with --global.\n`));
+        }
+        break;
+      }
+
+      // --global: keep the old behavior
       const result = await manager.installServer(service);
       if (result.success) {
         console.log(chalk.green(`\n✓ ${result.message}\n`));
@@ -114,13 +139,14 @@ export async function mcpCommand(action?: string, service?: string): Promise<voi
         console.log(chalk.red('❌ Please specify a service to remove.'));
         process.exit(1);
       }
-      const index = config.mcp.servers.indexOf(service);
+      const canonical = service.toLowerCase();
+      const index = config.mcp.servers.findIndex(s => s.toLowerCase() === canonical);
       if (index > -1) {
         config.mcp.servers.splice(index, 1);
         await saveConfig(config);
-        console.log(chalk.green(`\n✓ Removed ${service} from MCP services\n`));
+        console.log(chalk.green(`\n✓ Removed ${canonical} from MCP services\n`));
       } else {
-        console.log(chalk.yellow(`\n⚠ ${service} is not configured\n`));
+        console.log(chalk.yellow(`\n⚠ ${canonical} is not configured\n`));
       }
       break;
     }
