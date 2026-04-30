@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { loadConfig, loadState, saveState, getDefaultState } from '../config/loader.js';
-import { GATES, GATE_ORDER, getGate, listGates, getNextGate, validateGateProgression, GateStage, GateStatus } from '../core/gates.js';
+import { GATES, GATE_ORDER, getGate, listGates, getNextGate, validateGateProgression, canApproveGate, GateStage, GateStatus } from '../core/gates.js';
 import type { RuntimeState, GateStatuses } from '../core/types.js';
 import { enforce, EnforcementError } from '../core/enforce.js';
 
@@ -180,6 +180,18 @@ async function approveGate(gateId: string | undefined, gateStatuses: GateStatuse
     process.exit(1);
   }
 
+  // Authorize the current role
+  const role = state?.currentRole ?? 'dev';
+  if (!state?.currentRole) {
+    console.log(chalk.yellow(`\n⚠ No role configured in state — defaulting to 'dev'. Run "riper-for-all role <name>" to set a role.\n`));
+  }
+  if (!canApproveGate(gateId as GateStage, role)) {
+    console.log(chalk.red(`\n❌ Role '${role}' is not authorized to approve ${gate.emoji} ${gate.name}.\n`));
+    console.log(chalk.gray(`💡 Required approvals: ${gate.requiredApprovals.join(', ')}\n`));
+    console.log(chalk.gray(`   Switch to a required role: riper-for-all role <name>\n`));
+    process.exit(1);
+  }
+
   const stageKey = gateId as GateStage;
   if (!gateStatuses[stageKey]) {
     gateStatuses[stageKey] = {
@@ -193,16 +205,19 @@ async function approveGate(gateId: string | undefined, gateStatuses: GateStatuse
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   gateStatuses[stageKey]!.approved = true;
   gateStatuses[stageKey]!.timestamp = new Date().toISOString();
-  gateStatuses[stageKey]!.approvers.push('current-user');
+  // Record the real role; guard against duplicate entries
+  if (!gateStatuses[stageKey]!.approvers.includes(role)) {
+    gateStatuses[stageKey]!.approvers.push(role);
+  }
 
   if (!state) {
-    state = { ...getDefaultState(), gateStatuses };
+    state = { ...getDefaultState(), gateStatuses, currentRole: role as any };
   }
 
   state.gateStatuses = gateStatuses;
   await saveState(state);
 
-  console.log(chalk.green(`\n✓ Approved ${gate.emoji} ${gate.name}\n`));
+  console.log(chalk.green(`\n✓ Approved ${gate.emoji} ${gate.name} as '${role}'\n`));
 }
 
 async function resetGates(gateStatuses: GateStatuses, state: RuntimeState | null): Promise<void> {
