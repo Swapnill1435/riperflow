@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { promises as fsPromises } from 'node:fs';
 import chalk from 'chalk';
 import { loadConfig, loadState } from '../config/loader.js';
 import { MODES, PHASES, MEMORY_FILES } from '../core/modes.js';
@@ -95,20 +96,27 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<v
     return;
   });
 
-  app.get('/api/memory', async (req, res) => {
+  app.get('/api/memory', async (_req, res) => {
     try {
       const config = await loadConfig();
       if (!config) {
         return res.status(404).json({ error: 'RIPER not initialized' });
       }
 
-      const memoryFiles: Record<string, { path: string; exists: boolean }> = {};
+      const memoryFiles: Record<string, { path: string; exists: boolean; bytes: number; mtime: string | null }> = {};
       for (const [key, file] of Object.entries(MEMORY_FILES)) {
         const filePath = path.join(config.projectPath, config.memory.location, file.filename);
-        memoryFiles[key] = {
-          path: filePath,
-          exists: false
-        };
+        try {
+          const stat = await fsPromises.stat(filePath);
+          memoryFiles[key] = {
+            path: filePath,
+            exists: true,
+            bytes: stat.size,
+            mtime: stat.mtime.toISOString(),
+          };
+        } catch {
+          memoryFiles[key] = { path: filePath, exists: false, bytes: 0, mtime: null };
+        }
       }
 
       res.json(memoryFiles);
@@ -419,26 +427,36 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<v
     `);
   });
 
-  server.listen(options.port, () => {
-    console.log(chalk.cyan.bold('\n🌐 RIPER Web Dashboard'));
-    console.log(chalk.gray('─'.repeat(40)));
-    console.log(`  Local:   http://localhost:${options.port}`);
-    console.log(`  Status:  ${chalk.green('Running')}`);
-    console.log(`  WebSocket: ws://localhost:${options.port}/ws\n`);
-    
-    if (!options.detach) {
-      console.log(chalk.gray('  Press Ctrl+C to stop\n'));
-      
-      process.on('SIGINT', async () => {
-        console.log(chalk.yellow('\n\nShutting down...'));
-        await stopFileWatcher();
-        if (wss) {
-          wss.close();
-        }
-        server.close(() => {
-          process.exit(0);
-        });
-      });
-    }
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(chalk.red(`\n❌ Dashboard already running on :${options.port}, or port is in use by another process.`));
+        console.log(chalk.gray(`💡 Use --port <n> to pick a different port; or 'riper-for-all dashboard stop' to stop a detached instance.\n`));
+        process.exit(1);
+      }
+      reject(err);
+    });
+
+    server.listen(options.port, () => {
+      console.log(chalk.cyan.bold('\n🌐 RIPER Web Dashboard'));
+      console.log(chalk.gray('─'.repeat(40)));
+      console.log(`  Local:   http://localhost:${options.port}`);
+      console.log(`  Status:  ${chalk.green('Running')}`);
+      console.log(`  WebSocket: ws://localhost:${options.port}/ws\n`);
+
+      if (!options.detach) {
+        console.log(chalk.gray('  Press Ctrl+C to stop\n'));
+      }
+      resolve();
+    });
   });
+
+  const shutdown = async (signal: string) => {
+    console.log(chalk.yellow(`\n\nShutting down (${signal})...`));
+    await stopFileWatcher();
+    if (wss) wss.close();
+    server.close(() => process.exit(0));
+  };
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
 }

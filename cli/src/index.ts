@@ -113,7 +113,7 @@ program
 program
   .command('dashboard')
   .description('Open dashboard')
-  .argument('[type]', 'Dashboard type: tui, web', 'tui')
+  .argument('[type]', 'Dashboard type: tui, web, stop', 'tui')
   .option('-d, --detach', 'Run web dashboard in detached mode')
   .option('-p, --port <port>', 'Web dashboard port', '3456')
   .option('-w, --watch', 'Watch mode (auto-refresh for TUI)')
