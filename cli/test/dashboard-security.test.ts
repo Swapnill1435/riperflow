@@ -108,4 +108,15 @@ describe('dashboard server hardening', () => {
     });
     expect(res.status).toBe(401);
   });
+
+  it('GET / (primary dashboard page) includes security headers', async () => {
+    const { startWebDashboard } = await import('../src/dashboard/server.js');
+    server = await startWebDashboard({ port, host: '127.0.0.1', detach: true });
+
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('content-security-policy')).toContain("default-src 'self'");
+  });
 });

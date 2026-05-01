@@ -114,6 +114,16 @@ async function createPRD(prdDir: string, title?: string): Promise<void> {
   const filePath = path.join(prdDir, `${id}.json`);
 
   try {
+    assertWithinDir(filePath, [prdDir]);
+  } catch (e) {
+    if (e instanceof PathTraversalError) {
+      console.log(chalk.red(`\n❌ Invalid PRD title — derived path escapes the PRD directory.\n`));
+      process.exit(1);
+    }
+    throw e;
+  }
+
+  try {
     await enforce('create', filePath);
   } catch (e) {
     if (e instanceof EnforcementError) {

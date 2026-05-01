@@ -1,8 +1,10 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import path from 'path';
 import { loadConfig } from '../config/loader.js';
 import { getAnalyticsStorage } from '../analytics/index.js';
 import { AnalyticsDatabase } from '../analytics/database.js';
+import { assertWithinDir, PathTraversalError } from '../utils/path-safety.js';
 
 export interface AnalyticsOptions {
   format?: string;
@@ -131,8 +133,22 @@ async function runExport(projectPath: string, options: AnalyticsOptions): Promis
   }
 
   if (options.output) {
-    await fs.writeFile(options.output, body, 'utf-8');
-    console.log(chalk.green(`\n✓ Exported ${events.length} events (${format}) to ${options.output}\n`));
+    const resolvedOutput = path.resolve(options.output);
+    const cfg = await loadConfig();
+    const projectRoot = cfg?.projectPath ?? process.cwd();
+    try {
+      assertWithinDir(resolvedOutput, [projectRoot]);
+    } catch (e) {
+      if (e instanceof PathTraversalError) {
+        console.log(chalk.red(`\n❌ --output path escapes the project directory.\n`));
+        console.log(chalk.gray(`   Got: ${options.output}\n`));
+        console.log(chalk.gray(`   Allowed root: ${projectRoot}\n`));
+        process.exit(1);
+      }
+      throw e;
+    }
+    await fs.writeFile(resolvedOutput, body, 'utf-8');
+    console.log(chalk.green(`\n✓ Exported ${events.length} events (${format}) to ${resolvedOutput}\n`));
   } else {
     process.stdout.write(body);
     if (!body.endsWith('\n')) process.stdout.write('\n');

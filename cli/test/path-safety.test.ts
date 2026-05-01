@@ -93,3 +93,43 @@ describe('prd command path traversal', () => {
     }
   });
 });
+
+describe('analytics export --output traversal', () => {
+  it('rejects --output paths outside project root', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-analytics-traverse-'));
+    const spy = vi.spyOn(process, 'cwd').mockReturnValue(tmp);
+    try {
+      await fs.ensureDir(path.join(tmp, '.riper'));
+      await saveConfig({ ...getDefaultConfig(), projectPath: tmp });
+
+      const evil = path.join(tmp, '..', 'evil-export.json');
+      const { analyticsCommand } = await import('../src/commands/analytics.js');
+      const { exitCode } = await runWithExitGuard(() =>
+        analyticsCommand('export', { format: 'json', output: evil } as any)
+      );
+      expect(exitCode).toBe(1);
+      expect(await fs.pathExists(evil)).toBe(false);
+    } finally {
+      spy.mockRestore();
+      await fs.remove(tmp);
+    }
+  });
+
+  it('accepts --output paths inside project root', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'riper-analytics-inside-'));
+    const spy = vi.spyOn(process, 'cwd').mockReturnValue(tmp);
+    try {
+      await fs.ensureDir(path.join(tmp, '.riper'));
+      await saveConfig({ ...getDefaultConfig(), projectPath: tmp });
+
+      const target = path.join(tmp, 'analytics-out.json');
+      const { analyticsCommand } = await import('../src/commands/analytics.js');
+      // No exit expected — should write the file
+      await analyticsCommand('export', { format: 'json', output: target } as any);
+      expect(await fs.pathExists(target)).toBe(true);
+    } finally {
+      spy.mockRestore();
+      await fs.remove(tmp);
+    }
+  });
+});
