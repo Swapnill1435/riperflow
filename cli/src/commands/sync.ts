@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { loadConfig } from '../config/loader.js';
 import { createAdapter } from '../adapters/base.js';
 import { getAnalyticsStorage } from '../analytics/storage.js';
+import { truncateMemoryBank } from '../memory/manager.js';
 
 export interface SyncOptions { dryRun?: boolean; }
 export interface SyncResult { updated: string[]; skipped: string[]; }
@@ -34,6 +35,12 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
     } else if (!result.success) {
       skipped.push(toolId);
     }
+  }
+
+  try {
+    await truncateMemoryBank();
+  } catch {
+    // Non-blocking — sync's job is rule regeneration; truncation is best-effort.
   }
 
   try {
