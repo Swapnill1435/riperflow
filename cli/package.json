@@ -7,8 +7,11 @@
   "bin": {
     "riper-for-all": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs-extra').copySync('src/dashboard/public','dist/dashboard/public')\"",
+    "build": "tsc && node -e \"const fs=require('fs-extra'); fs.copySync('src/dashboard/public','dist/dashboard/public'); fs.chmodSync('dist/index.js', 0o755);\"",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "test": "vitest",
