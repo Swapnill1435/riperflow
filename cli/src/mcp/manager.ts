@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import chalk from 'chalk';
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import { getMCPServer, MCPServerConfig, getAnyMCPServer, validateMCPEnv, getServerInstallCommand, isServerInstalled } from './servers.js';
 
