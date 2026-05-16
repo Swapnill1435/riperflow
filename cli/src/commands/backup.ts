@@ -58,8 +58,21 @@ export async function autoBackupFile(filePath: string, silent: boolean = false):
 
 async function cleanupOldBackups(filename: string, backupsDir: string): Promise<void> {
   try {
-    const config = await loadConfig();
-    const maxBackups = config?.backup?.maxBackups ?? 10;
+    // Read config inline (not via loadConfig) so we never log a parse error
+    // when this fires from saveConfig while config.json is mid-write.
+    let maxBackups = 10;
+    try {
+      const configPath = path.join(getRiperDir(), 'config.json');
+      if (await fs.pathExists(configPath)) {
+        const raw = await fs.readFile(configPath, 'utf-8');
+        if (raw.trim().length > 0) {
+          const parsed = JSON.parse(raw);
+          maxBackups = parsed?.backup?.maxBackups ?? 10;
+        }
+      }
+    } catch {
+      // Mid-write race or corrupt config → fall through with default 10.
+    }
     const files = await fs.readdir(backupsDir);
     const backupFiles = files
       .filter(f => f.startsWith(`${filename}.`) && f.endsWith('.bak'))

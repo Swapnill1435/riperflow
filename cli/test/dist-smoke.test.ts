@@ -53,3 +53,39 @@ describe('dist smoke (ESM regression guard)', () => {
     expect(r.code).toBe(0);
   });
 });
+
+describe('init UX', () => {
+  let tmp: string;
+
+  beforeAll(() => {
+    if (!fs.existsSync(CLI)) {
+      throw new Error(`dist build missing at ${CLI} — run \`npm run build\` first`);
+    }
+  });
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'riper-init-ux-'));
+  });
+
+  afterEach(() => {
+    fs.removeSync(tmp);
+  });
+
+  it('init with no flags and non-TTY stdin falls back to defaults (Bug #3)', () => {
+    // spawnSync inherits a non-TTY stdin by default — exactly the CI/Docker case
+    const r = run(tmp, ['init']);
+    expect(r.code).toBe(0);
+    expect(r.stderr + r.stdout).not.toMatch(/ERR_USE_AFTER_CLOSE/);
+    expect(fs.existsSync(path.join(tmp, '.riper', 'config.json'))).toBe(true);
+    expect(fs.existsSync(path.join(tmp, 'memory-bank'))).toBe(true);
+  });
+
+  it('init output is free of stack traces and JSON parse warnings (Bug #11)', () => {
+    const r = run(tmp, ['init', '--yes']);
+    const combined = r.stdout + r.stderr;
+    expect(combined).not.toMatch(/SyntaxError/);
+    expect(combined).not.toMatch(/Unexpected end of JSON input/);
+    expect(combined).not.toMatch(/at JSON\.parse/);
+    expect(combined).not.toMatch(/Error loading config/);
+  });
+});

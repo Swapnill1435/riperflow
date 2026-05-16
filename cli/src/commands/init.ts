@@ -15,6 +15,14 @@ interface InitOptions {
 export async function initCommand(options: InitOptions): Promise<void> {
   console.log(chalk.cyan.bold('\n🚀 Initializing RIPER-for-All...\n'));
 
+  // Non-TTY (CI, pipes, Docker, scripted demo recording) cannot answer
+  // inquirer prompts. Fall back to default answers instead of crashing
+  // with ERR_USE_AFTER_CLOSE deep inside readline.
+  if (!options.yes && !process.stdin.isTTY) {
+    console.log(chalk.gray('No TTY detected — using default answers (equivalent to `--yes`).'));
+    options.yes = true;
+  }
+
   // Check if already initialized
   const existingConfig = await loadConfig();
   if (existingConfig) {
@@ -59,7 +67,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
           { name: 'VS Code', value: 'vscode', checked: false },
           { name: 'Roo Code', value: 'roo', checked: false },
           { name: 'Aider', value: 'aider', checked: false },
-          { name: 'Windsurf', value: 'windsurf', checked: false }
+          { name: 'Windsurf', value: 'windsurf', checked: false },
+          { name: 'Cline', value: 'cline', checked: false },
+          { name: 'Codex CLI', value: 'codex', checked: false }
         ]
       }
     ]);

@@ -24,7 +24,9 @@ const DEFAULT_CONFIG: ProjectConfig = {
     vscode: false,
     roo: false,
     aider: false,
-    windsurf: false
+    windsurf: false,
+    cline: false,
+    codex: false
   },
   memory: {
     location: 'memory-bank',
@@ -94,16 +96,20 @@ export async function ensureDirectories(): Promise<void> {
 
 export async function loadConfig(): Promise<ProjectConfig | null> {
   const configPath = path.join(getRiperDir(), 'config.json');
-  
+
   try {
     if (await fs.pathExists(configPath)) {
       const data = await fs.readJson(configPath);
       return { ...DEFAULT_CONFIG, ...data };
     }
   } catch (error) {
-    console.error('Error loading config:', error);
+    // Don't dump a full Node stack trace at the user. This race fires
+    // during `init` when cleanupOldBackups reads the config in the same
+    // tick that saveConfig is writing it; callers handle null gracefully.
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(chalk.yellow(`warning: could not parse ${configPath}: ${msg}`));
   }
-  
+
   return null;
 }
 
