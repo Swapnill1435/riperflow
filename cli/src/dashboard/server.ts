@@ -12,6 +12,7 @@ import { MODES, PHASES, MEMORY_FILES } from '../core/modes.js';
 import { getAnalyticsStorage } from '../analytics/index.js';
 import { createFileWatcher, stopFileWatcher, getFileWatcher } from './watcher.js';
 import { enforce, EnforcementError } from '../core/enforce.js';
+import { createViolationLogger } from '../core/violations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,9 +52,25 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<H
   const server = createServer(app);
   const host = options.host ?? '127.0.0.1';
 
+  const config = await loadConfig();
+  const token = config
+    ? await ensureDashboardToken(config.projectPath)
+    : crypto.randomBytes(32).toString('hex');
+
   wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (ws) => {
+  // WS auth: token comes via ?token=... query param on the upgrade URL.
+  // Constant-time compare; close 1008 (policy violation) on mismatch so
+  // the client surfaces a useful error rather than a generic hangup.
+  wss.on('connection', (ws, req) => {
+    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+    const supplied = url.searchParams.get('token') ?? '';
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(token);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      ws.close(1008, 'invalid or missing token');
+      return;
+    }
     clients.add(ws);
     console.log(chalk.gray('  WebSocket client connected'));
 
@@ -61,11 +78,6 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<H
       clients.delete(ws);
     });
   });
-
-  const config = await loadConfig();
-  const token = config
-    ? await ensureDashboardToken(config.projectPath)
-    : crypto.randomBytes(32).toString('hex');
 
   if (config) {
     const watcher = await createFileWatcher(config.projectPath);
@@ -85,9 +97,25 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<H
     next();
   });
 
-  app.use(express.static(path.join(__dirname, 'public')));
+  // Serve index.html with the auth token injected so the frontend can
+  // attach `X-RIPER-Token` to its API calls. Token is rendered into a
+  // <meta> tag (not a global) so the page never leaks it to third-party
+  // scripts via window.* and is easy to JSON-encode safely.
+  const publicDir = path.join(__dirname, 'public');
+  app.get('/', async (_req, res, next) => {
+    try {
+      const html = await fsPromises.readFile(path.join(publicDir, 'index.html'), 'utf-8');
+      const meta = `<meta name="riper-token" content="${token}">`;
+      res.type('html').send(html.replace('</head>', `  ${meta}\n</head>`));
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.use(express.static(publicDir, { index: false }));
 
-  // Token gate — only applied to mutating endpoints
+  // Token gate — applied to every /api/* route (read and write).
+  // Static dashboard assets (HTML/CSS/JS) above remain unauthenticated so the
+  // page can load; the page then supplies the token in fetch() headers.
   function requireToken(req: express.Request, res: express.Response, next: express.NextFunction): void {
     const header = req.header('X-RIPER-Token') ?? '';
     // Constant-time compare — pre-check length to avoid timingSafeEqual throwing
@@ -100,6 +128,8 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<H
     }
     next();
   }
+
+  app.use('/api', requireToken);
 
   app.get('/api/status', async (req, res) => {
     try {
@@ -188,6 +218,22 @@ export async function startWebDashboard(options: WebDashboardOptions): Promise<H
         modeHistory,
         commandUsage
       });
+    } catch (error) {
+      res.status(500).json({ error: String(error) });
+    }
+    return;
+  });
+
+  app.get('/api/violations', async (_req, res) => {
+    try {
+      const config = await loadConfig();
+      if (!config) {
+        return res.status(404).json({ error: 'RIPER not initialized' });
+      }
+      const logger = createViolationLogger(config.projectPath);
+      await logger.initialize();
+      const stats = await logger.getStats();
+      res.json(stats);
     } catch (error) {
       res.status(500).json({ error: String(error) });
     }

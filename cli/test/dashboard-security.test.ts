@@ -99,6 +99,37 @@ describe('dashboard server hardening', () => {
     expect(res.headers.get('content-security-policy')).toContain("default-src 'self'");
   });
 
+  // Bug 6: read endpoints used to be open. Lock them down for every /api/* route.
+  it.each(['/api/status', '/api/memory', '/api/analytics', '/api/violations', '/api/watcher'])(
+    'GET %s without token returns 401',
+    async (route) => {
+      const { startWebDashboard } = await import('../src/dashboard/server.js');
+      server = await startWebDashboard({ port, host: '127.0.0.1', detach: true });
+
+      const res = await fetch(`http://127.0.0.1:${port}${route}`);
+      expect(res.status).toBe(401);
+    }
+  );
+
+  it('GET /api/status with valid token returns 200', async () => {
+    const { startWebDashboard } = await import('../src/dashboard/server.js');
+    server = await startWebDashboard({ port, host: '127.0.0.1', detach: true });
+    const token = (await fs.readFile(path.join(tmp, '.riper', 'dashboard.token'), 'utf-8')).trim();
+    const res = await fetch(`http://127.0.0.1:${port}/api/status`, {
+      headers: { 'X-RIPER-Token': token },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('GET / injects the auth token as a <meta> tag for the frontend', async () => {
+    const { startWebDashboard } = await import('../src/dashboard/server.js');
+    server = await startWebDashboard({ port, host: '127.0.0.1', detach: true });
+    const token = (await fs.readFile(path.join(tmp, '.riper', 'dashboard.token'), 'utf-8')).trim();
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    const html = await res.text();
+    expect(html).toContain(`<meta name="riper-token" content="${token}">`);
+  });
+
   it('POST /api/watcher/stop without token returns 401', async () => {
     const { startWebDashboard } = await import('../src/dashboard/server.js');
     server = await startWebDashboard({ port, host: '127.0.0.1', detach: true });

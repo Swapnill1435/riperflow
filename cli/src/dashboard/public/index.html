@@ -547,6 +547,15 @@
     </div>
 
     <script>
+        // Auth token injected by the server into <meta name="riper-token">.
+        // Every /api/* call must send it via the X-RIPER-Token header.
+        const RIPER_TOKEN = document.querySelector('meta[name="riper-token"]')?.content || '';
+        function apiFetch(url, init = {}) {
+            const headers = new Headers(init.headers || {});
+            if (RIPER_TOKEN) headers.set('X-RIPER-Token', RIPER_TOKEN);
+            return fetch(url, { ...init, headers });
+        }
+
         // WebSocket connection
         let ws = null;
         let reconnectAttempts = 0;
@@ -554,7 +563,8 @@
 
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            const tokenParam = RIPER_TOKEN ? `?token=${encodeURIComponent(RIPER_TOKEN)}` : '';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws${tokenParam}`);
 
             ws.onopen = () => {
                 console.log('WebSocket connected');
@@ -598,7 +608,7 @@
 
         async function fetchStatus() {
             try {
-                const response = await fetch('/api/status');
+                const response = await apiFetch('/api/status');
                 const data = await response.json();
                 updateDashboard(data);
             } catch (error) {
@@ -645,7 +655,7 @@
 
         async function fetchViolations() {
             try {
-                const response = await fetch('/api/violations');
+                const response = await apiFetch('/api/violations');
                 const data = await response.json();
                 
                 document.getElementById('violation-total').textContent = data.total || 0;
