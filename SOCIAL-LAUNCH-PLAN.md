@@ -39,7 +39,7 @@
              Status panel updates.
 [0:45–0:55]  Browser: dashboard at localhost:3456. Mode tile updates live
              when you flip mode in another terminal.
-[0:55–1:00]  End card: "github.com/<user>/riperflow   ·   MIT   ·
+[0:55–1:00]  End card: "github.com/nitingupta220/riperflow   ·   MIT   ·
              npx riperflow init"
 ```
 
@@ -82,7 +82,7 @@ The launch spike fades fast. Keep three lights on:
 
 ## 10 ready-to-post drafts
 
-Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Replace `github.com/<user>/riperflow` and the @-handle with the live values.**
+Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Replace `github.com/nitingupta220/riperflow` and the @-handle with the live values.**
 
 ### Draft 1 — X teaser, T-2 days
 
@@ -151,7 +151,7 @@ Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Repla
 >
 > npx riperflow init
 >
-> Repo: github.com/<user>/riperflow
+> Repo: github.com/nitingupta220/riperflow
 >
 > If you try it, tell me what breaks — I want this to be reliable.
 
@@ -167,7 +167,7 @@ Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Repla
 >
 > MIT, no signup. `npx riperflow init`
 >
-> Repo + docs: github.com/<user>/riperflow
+> Repo + docs: github.com/nitingupta220/riperflow
 >
 > If you try it and something breaks, please open an issue — I want this to be reliable.
 
@@ -192,7 +192,7 @@ Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Repla
 >
 > What ended up working was treating "workflow" as a separate layer from any one tool — a shared spec, a memory bank that all the tools read, and a tiny mode-switching CLI.
 >
-> Wrote up the approach (BMAD-style roles + RIPER methodology + symbolic notation to keep token cost down) and the CLI that generates the right rule file for each tool: github.com/<user>/riperflow
+> Wrote up the approach (BMAD-style roles + RIPER methodology + symbolic notation to keep token cost down) and the CLI that generates the right rule file for each tool: github.com/nitingupta220/riperflow
 >
 > Curious whether anyone else has solved the multi-tool context problem differently. Genuinely interested in what's working for people.
 
@@ -206,7 +206,7 @@ Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Repla
 >
 > Whole spec compiled for Claude Code is 1,355 tokens — measured.
 >
-> MIT, open source: github.com/<user>/riperflow
+> MIT, open source: github.com/nitingupta220/riperflow
 >
 > Would love feedback from heavy Claude Code users specifically.
 
@@ -218,7 +218,7 @@ Numbers and quotes pulled from POST-FIX-VERIFICATION.md so they're real. **Repla
 >
 > One `init` writes `.cursor/rules/riper.mdc` plus the equivalents for the others. Mode switching (Research/Plan/Execute/Review) updates all rule files at once.
 >
-> No signup, MIT: `npx riperflow init` · github.com/<user>/riperflow
+> No signup, MIT: `npx riperflow init` · github.com/nitingupta220/riperflow
 
 ### Draft 9 — Show HN title + opening line
 

@@ -1,14 +1,14 @@
-<!-- TODO: replace <user>/riperflow below with the live GitHub URL after repo create -->
-
 # Riperflow
 
 > One workflow methodology across **ten** AI coding tools — Cursor, Claude Code, OpenCode, Aider, and friends — in a single ≈1,350-token spec.
 
 [![npm version](https://img.shields.io/npm/v/riperflow.svg?logo=npm&label=npm)](https://www.npmjs.com/package/riperflow)
 [![npm downloads](https://img.shields.io/npm/dw/riperflow.svg)](https://www.npmjs.com/package/riperflow)
-[![CI](https://img.shields.io/github/actions/workflow/status/nitininfrax/riperflow/ci.yml?branch=main&label=tests)](https://github.com/nitininfrax/riperflow/actions/workflows/ci.yml)
+[![provenance](https://img.shields.io/badge/npm-provenance-blue?logo=npm)](https://www.npmjs.com/package/riperflow)
+[![CI](https://img.shields.io/github/actions/workflow/status/nitingupta220/riperflow/ci.yml?branch=main&label=tests)](https://github.com/nitingupta220/riperflow/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/riperflow.svg)](./LICENSE)
 [![node](https://img.shields.io/node/v/riperflow.svg)](https://www.npmjs.com/package/riperflow)
+[![stars](https://img.shields.io/github/stars/nitingupta220/riperflow?style=flat&logo=github)](https://github.com/nitingupta220/riperflow/stargazers)
 
 ---
 
@@ -144,17 +144,17 @@ Run any command with `--help` for full options.
 
 Bug reports, tool integrations, and methodology improvements all welcome.
 
-- **Issues:** https://github.com/nitininfrax/riperflow/issues
-- **Discussions:** https://github.com/nitininfrax/riperflow/discussions
+- **Issues:** https://github.com/nitingupta220/riperflow/issues
+- **Discussions:** https://github.com/nitingupta220/riperflow/discussions
 - Pull requests should include a test (see `cli/test/`)
 
 ## Documentation
 
 Deeper dives (rendered on GitHub):
 
-- [Architecture](https://github.com/nitininfrax/riperflow/blob/main/architecture.md)
-- [Product requirements (PRD)](https://github.com/nitininfrax/riperflow/blob/main/PRD.md)
-- [Test report](https://github.com/nitininfrax/riperflow/blob/main/TEST-REPORT.md)
+- [Architecture](https://github.com/nitingupta220/riperflow/blob/main/architecture.md)
+- [Product requirements (PRD)](https://github.com/nitingupta220/riperflow/blob/main/PRD.md)
+- [Test report](https://github.com/nitingupta220/riperflow/blob/main/TEST-REPORT.md)
 
 ## License
 

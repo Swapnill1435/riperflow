@@ -5,7 +5,7 @@ Thanks for your interest. Small thing or large, here's the 30-second onramp.
 ## Local development
 
 ```bash
-git clone https://github.com/nitininfrax/riperflow.git
+git clone https://github.com/nitingupta220/riperflow.git
 cd riperflow/cli
 npm install
 npm run build      # also chmods dist/index.js +x
