@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "riperflow": "./dist/index.js"
+    "riperflow": "dist/index.js"
   },
   "files": [
     "dist"
@@ -34,7 +34,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/riperflow/riperflow"
+    "url": "git+https://github.com/nitingupta220/riperflow.git"
+  },
+  "homepage": "https://github.com/nitingupta220/riperflow#readme",
+  "bugs": {
+    "url": "https://github.com/nitingupta220/riperflow/issues"
   },
   "engines": {
     "node": ">=20.0.0"
