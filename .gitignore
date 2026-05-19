@@ -8,6 +8,10 @@ test-project/memory-bank/
 .DS_Store
 .gstack/
 
+# Session tooling artifacts (skills runtime, agent definitions)
+.agents/
+skills-lock.json
+
 # Copied into cli/ by scripts/prepublish.mjs at npm publish time.
 # Canonical lives at the repo root; ignoring these prevents drift.
 cli/README.md
