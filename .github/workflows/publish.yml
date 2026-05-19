@@ -5,10 +5,12 @@ name: Publish to npm
 # and publishes to npm with provenance.
 #
 # Required one-time setup on the repo:
-#   1. Add an NPM_TOKEN secret: https://github.com/<owner>/<repo>/settings/secrets/actions
-#      Generate at https://www.npmjs.com/settings/<user>/tokens — "Automation" type.
-#   2. (Optional, recommended) configure trusted publishing on npmjs.com so
-#      you can remove the token entirely. Provenance still attaches either way.
+#   - Configure a trusted publisher on npmjs.com bound to this repo +
+#     workflow filename `publish.yml`. The runner upgrades npm to >=11.5
+#     so it can mint an OIDC token at publish time — no NPM_TOKEN needed.
+#   - Optional fallback: set NPM_TOKEN secret (Classic Automation token);
+#     the publish step picks it up via NODE_AUTH_TOKEN when present.
+#     Provenance attaches either way.
 
 on:
   push:
@@ -35,6 +37,9 @@ jobs:
           cache-dependency-path: cli/package-lock.json
           registry-url: https://registry.npmjs.org
 
+      - name: Upgrade npm for trusted publishing (requires npm >= 11.5)
+        run: npm install -g npm@latest
+
       - name: Install
         run: npm ci
 
@@ -56,7 +61,7 @@ jobs:
           fi
           echo "Tag and package.json agree: $PKG"
 
-      - name: Publish
+      - name: Publish (OIDC via trusted publisher; NPM_TOKEN fallback if set)
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
