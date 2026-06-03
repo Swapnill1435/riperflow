@@ -21,7 +21,7 @@ import httpx
 
 MODELS: list[str] = [m.strip() for m in os.getenv(
     "FREE_MODEL_CHAIN",
-    "qwen/qwen3-235b-a22b:free,google/gemma-3-27b-it:free,mistralai/mistral-7b-instruct:free",
+    "meta-llama/llama-3.1-8b-instruct:free,mistralai/mistral-7b-instruct:free,qwen/qwen-2-7b-instruct:free",
 ).split(",") if m.strip()]
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
@@ -75,12 +75,26 @@ async def github_post(client: httpx.AsyncClient, path: str, body: dict) -> Any:
     return r.json()
 
 
+# Extensions that are likely source code (reviewed first for better token budget use)
+_SOURCE_EXTS = re.compile(r"\.(py|js|ts|tsx|jsx|go|java|rb|rs|cs|cpp|c|h|php|swift|kt|scala)$", re.IGNORECASE)
+_CONFIG_EXTS = re.compile(r"\.(yml|yaml|json|toml|ini|cfg|md|txt)$", re.IGNORECASE)
+
+
+def _sort_files(files: list[dict]) -> list[dict]:
+    """Prioritize source code files so they're reviewed first within the token budget."""
+    source = [f for f in files if _SOURCE_EXTS.search(f.get("filename", ""))]
+    config = [f for f in files if _CONFIG_EXTS.search(f.get("filename", ""))]
+    other = [f for f in files if f not in source and f not in config]
+    return source + other + config
+
+
 async def get_pr_diff(client: httpx.AsyncClient, repo: str, pr_number: int) -> str:
-    """Fetch the unified diff for a PR, filtered and capped."""
+    """Fetch the unified diff for a PR, filtered and capped. Source files come first."""
     files: list[dict] = await github_get(client, f"/repos/{repo}/pulls/{pr_number}/files")
+    files = _sort_files(files[:MAX_FILES])
     chunks: list[str] = []
     total = 0
-    for f in files[:MAX_FILES]:
+    for f in files:
         filename = f.get("filename", "")
         if SKIP_PATTERNS.search(filename):
             continue
@@ -111,10 +125,9 @@ async def call_llm(client: httpx.AsyncClient, system: str, user: str) -> dict:
             ],
             "max_tokens": 1200,
             "temperature": 0.1,
+            # Note: no response_format — free models don't support json_object mode.
+            # Our 4-stage _parse_json() handles messy output robustly.
         }
-        # Only request json_object for non-thinking models
-        if "3.5" not in model and "thinking" not in model:
-            payload["response_format"] = {"type": "json_object"}
 
         try:
             r = await client.post(
