@@ -9,7 +9,7 @@ import hashlib
 import time
 from datetime import datetime
 
-# ⚠️ Hardcoded credentials (security agent should catch this)
+# TODO: move all credentials to environment variables before production
 DATABASE_PATH = "analytics.db"
 ADMIN_SECRET_KEY = "sk-prod-abc123xyz789-supersecret"
 INTERNAL_API_KEY = "AIzaSyD-hardcoded-google-api-key-here"
