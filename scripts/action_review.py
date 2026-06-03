@@ -21,7 +21,7 @@ import httpx
 
 MODELS: list[str] = [m.strip() for m in os.getenv(
     "FREE_MODEL_CHAIN",
-    "meta-llama/llama-3.1-8b-instruct:free,mistralai/mistral-7b-instruct:free,qwen/qwen-2-7b-instruct:free",
+    "moonshotai/kimi-k2.6:free,qwen/qwen3-next-80b-a3b-instruct:free,meta-llama/llama-3.3-70b-instruct:free",
 ).split(",") if m.strip()]
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
@@ -113,7 +113,7 @@ async def get_pr_diff(client: httpx.AsyncClient, repo: str, pr_number: int) -> s
 # ── OpenRouter helpers ───────────────────────────────────────────────────────
 
 async def call_llm(client: httpx.AsyncClient, system: str, user: str) -> dict:
-    """Call OpenRouter with model fallback. Returns parsed JSON dict."""
+    """Call OpenRouter with model fallback + retry backoff. Returns parsed JSON dict."""
     last_err: Exception | None = None
 
     for model in MODELS:
@@ -129,27 +129,35 @@ async def call_llm(client: httpx.AsyncClient, system: str, user: str) -> dict:
             # Our 4-stage _parse_json() handles messy output robustly.
         }
 
-        try:
-            r = await client.post(
-                OPENROUTER_API,
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://github.com/ai-pr-review",
-                    "X-Title": "AI PR Review",
-                },
-                json=payload,
-                timeout=60,
-            )
-            if r.status_code == 429:
-                last_err = Exception(f"429 on {model}")
+        # Retry the same model up to 2 times for transient 429/503 errors
+        for attempt in range(2):
+            try:
+                r = await client.post(
+                    OPENROUTER_API,
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://github.com/ai-pr-review",
+                        "X-Title": "AI PR Review",
+                    },
+                    json=payload,
+                    timeout=90,
+                )
+                if r.status_code in (429, 503):
+                    wait = 5 * (attempt + 1)
+                    print(f"[WARN] {model} → HTTP {r.status_code}, retrying in {wait}s...", flush=True)
+                    await asyncio.sleep(wait)
+                    last_err = Exception(f"HTTP {r.status_code} on {model}")
+                    continue
+                r.raise_for_status()
+                content = r.json()["choices"][0]["message"]["content"]
+                return _parse_json(content)
+            except (Exception,) as e:
+                last_err = e
+                if attempt == 0:
+                    await asyncio.sleep(3)  # brief pause before retry
                 continue
-            r.raise_for_status()
-            content = r.json()["choices"][0]["message"]["content"]
-            return _parse_json(content)
-        except Exception as e:
-            last_err = e
-            continue
+        # All retries exhausted for this model, try next
 
     raise RuntimeError(f"All models failed. Last error: {last_err}")
 
