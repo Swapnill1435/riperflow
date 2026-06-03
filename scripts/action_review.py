@@ -21,7 +21,7 @@ import httpx
 
 MODELS: list[str] = [m.strip() for m in os.getenv(
     "FREE_MODEL_CHAIN",
-    "meta-llama/llama-3.1-8b-instruct:free,mistralai/mistral-7b-instruct:free,qwen/qwen-2-7b-instruct:free",
+    "openai/gpt-oss-120b:free,qwen/qwen3-coder:free,z-ai/glm-4.5-air:free",
 ).split(",") if m.strip()]
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
